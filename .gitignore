@@ -56,3 +56,5 @@ coverage/
 # Claude AI assistant files
 CLAUDE.md
 .claude/
+redis-bin/
+test2.js
