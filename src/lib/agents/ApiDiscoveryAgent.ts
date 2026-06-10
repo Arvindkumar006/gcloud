@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { DEMO_CONFIG } from "./config";
 
 export class ApiDiscoveryAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -9,10 +10,11 @@ export class ApiDiscoveryAgent {
     this.onUpdate("timeline", { id: "discovery-start", label: "Comparing premium providers...", status: "running" });
 
     this.onUpdate("reasoning", "Scanning registry for providers with 'institutional sentiment' and 'NVIDIA/AMD' coverage...");
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1000));
     
-    // Simulate dynamic replanning by randomly failing the first attempt (for demo purposes if a specific keyword is passed, or just hardcode it to show the flow)
-    const isFailing = Math.random() > 0.8; // 20% chance to fail just for demo, or we can use a keyword.
+    if (DEMO_CONFIG.TRIGGER_DISCOVERY_FAILURE) {
+      throw new Error("API Discovery timeout triggered by Demo Mode");
+    }
     
     this.onUpdate("communication", { sender: "API Discovery", receiver: "Cost Optimization", message: "Identified 3 candidate premium providers." });
     

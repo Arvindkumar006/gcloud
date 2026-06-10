@@ -3,13 +3,24 @@ import { GoogleGenAI } from "@google/genai";
 export class ReportAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
 
-  async generate(data: any) {
+  async generate(verifiedDataObj: any, prompt: string) {
     this.updateAgentState("running");
     this.onUpdate("graph_update", { id: "result-1", status: "running" });
     this.onUpdate("timeline", { id: "report", label: "Generating final report...", status: "running" });
 
-    this.onUpdate("reasoning", "Synthesizing executive summary from 8 combined free and premium sources...");
-    await new Promise(r => setTimeout(r, 1500));
+    this.onUpdate("reasoning", "Asking Gemini to synthesize executive summary from verified datasets...");
+    
+    let reportText = "Executive Summary synthesized successfully.";
+    try {
+      const response = await this.ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: `Given the user prompt "${prompt}" and the following verified data payload: ${JSON.stringify(verifiedDataObj)}, write a 2-3 sentence executive summary that strictly relies on the provided data.`
+      });
+      reportText = response.text || reportText;
+    } catch (e) {
+      this.onUpdate("reasoning", "Gemini synthesis failed, returning raw verified data payload.");
+      reportText = JSON.stringify(verifiedDataObj.data);
+    }
     
     this.onUpdate("reasoning", "Report generated successfully.");
 
@@ -17,7 +28,7 @@ export class ReportAgent {
     this.onUpdate("graph_update", { id: "result-1", status: "completed" });
     this.updateAgentState("completed");
 
-    return "Executive Summary: NVIDIA maintains dominant market share in data center AI chips, while AMD is aggressively capturing edge compute. Premium market intelligence confirms a 12% YoY growth in specialized silicon demand.";
+    return reportText;
   }
 
   async generateFromMemory(memoryData: any) {
@@ -26,7 +37,7 @@ export class ReportAgent {
     this.onUpdate("timeline", { id: "report", label: "Generating report from memory...", status: "running" });
 
     this.onUpdate("reasoning", "Formatting cached memory into the final executive summary...");
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 500));
     
     this.onUpdate("timeline", { id: "report", label: "Executive Summary generated", status: "completed" });
     this.onUpdate("graph_update", { id: "result-1", status: "completed" });

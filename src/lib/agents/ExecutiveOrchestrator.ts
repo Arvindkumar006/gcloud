@@ -26,6 +26,7 @@ export class ExecutiveOrchestrator {
     let retries = 0;
     let estimatedCost = 0;
     let actualCost = 0;
+    let autonomousDecisions = 0;
     
     // For Intelligence Score
     let planningQuality = 100;
@@ -49,22 +50,31 @@ export class ExecutiveOrchestrator {
       try {
         taskGraph = await planner.generatePlan(prompt);
         tasksCompleted++;
+        autonomousDecisions++;
       } catch (e) {
         planningQuality -= 20;
         throw new Error("Critical Failure: Planner unable to construct execution graph.");
       }
       
-      // 2. Memory Check
-      agentsUsed++;
-      let memoryResult;
-      try {
-        memoryResult = await memory.checkMemory(prompt, taskGraph);
-        tasksCompleted++;
-      } catch (e) {
-        onUpdate("reasoning", "Memory Agent encountered a connection error. Skipping cache and proceeding with execution.");
-        onUpdate("communication", { sender: "Memory", receiver: "Research", message: "Memory unavailable. Proceed with external searches." });
-        memoryResult = { matchFound: false, savedCost: 0, data: null };
-      }
+      // 2 & 3. Memory Check & Research (Parallel Execution)
+      agentsUsed += 2;
+      onUpdate("reasoning", "Executing Memory Check and Free Research concurrently (Promise.all)...");
+      autonomousDecisions++;
+      
+      const [memoryResult, freeDataResult] = await Promise.all([
+        memory.checkMemory(prompt, taskGraph).catch(e => {
+          onUpdate("reasoning", "Memory Agent encountered an error. Skipping cache.");
+          return { matchFound: false, savedCost: 0, data: null };
+        }),
+        research.executeFreeSearch(prompt).catch(e => {
+          onUpdate("reasoning", "Primary free search failed. Proceeding to premium discovery.");
+          recoveryHandling -= 2;
+          return { sufficient: false, data: [] };
+        })
+      ]);
+      
+      tasksCompleted += 2;
+      freeSearches += 3; // base metric
       
       if (memoryResult.matchFound) {
         memoryHits++;
@@ -77,78 +87,63 @@ export class ExecutiveOrchestrator {
         const finalReport = await report.generateFromMemory(memoryResult);
         tasksCompleted++;
         
-        this.emitFinalSummary(onUpdate, startTime, agentsUsed, tasksCompleted, memoryHits, premiumPurchases, moneySaved, 98, planningQuality, recoveryHandling);
+        this.emitFinalSummary(onUpdate, startTime, agentsUsed, tasksCompleted, memoryHits, premiumPurchases, moneySaved, 98, planningQuality, recoveryHandling, autonomousDecisions);
         onUpdate("done", { report: finalReport });
         return;
       }
 
-      // 3. Research Free Sources
-      agentsUsed++;
-      let freeData;
-      try {
-        freeSearches += 5; // Simulating multiple sources checked
-        freeData = await research.executeFreeSearch(taskGraph);
-        tasksCompleted++;
-      } catch (e) {
-        retries++;
-        recoveryHandling -= 5;
-        onUpdate("timeline", { id: "research-fail", label: "Research failed. Replanning...", status: "failed" });
-        onUpdate("reasoning", "Primary free search providers failed. Switching to alternative fallback sources...");
-        onUpdate("communication", { sender: "Executive", receiver: "Research", message: "Re-execute using alternative search strategy." });
-        
-        await new Promise(r => setTimeout(r, 1000)); // Replanning delay
-        freeSearches += 3;
-        freeData = { sufficient: false, data: ["Alternative Free News Snippet"] };
-        tasksCompleted++;
+      let premiumApis;
+      
+      // 4. API Discovery with Robust Retry Loop
+      const MAX_ATTEMPTS = 3;
+      let discoverySuccess = false;
+      
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          if (attempt === 1) agentsUsed++;
+          onUpdate("reasoning", `API Discovery Attempt ${attempt}/${MAX_ATTEMPTS}...`);
+          premiumApis = await discovery.discoverApis(taskGraph, freeDataResult);
+          discoverySuccess = true;
+          tasksCompleted++;
+          autonomousDecisions++;
+          break; // Exit loop on success
+        } catch (e: any) {
+          retries++;
+          recoveryHandling -= 5;
+          onUpdate("timeline", { id: `replanning-${attempt}`, label: `Provider timeout (Attempt ${attempt}). Replanning...`, status: "failed" });
+          onUpdate("reasoning", `API Discovery failed on attempt ${attempt}. Re-executing discovery protocol.`);
+          onUpdate("communication", { sender: "Planner", receiver: "API Discovery", message: "Timeout detected. Retrying." });
+          await new Promise(r => setTimeout(r, 1000));
+        }
       }
       
-      let premiumApis;
-      let selectedApi;
-      let paymentResult;
-      
-      // 4. API Discovery with Dynamic Replanning
-      try {
-        agentsUsed++;
-        premiumApis = await discovery.discoverApis(taskGraph, freeData);
-        tasksCompleted++;
-        
-        // Random chance to simulate API Discovery failure and trigger dynamic replanning
-        if (Math.random() > 0.8) {
-          throw new Error("API Discovery timed out connecting to registry.");
-        }
-      } catch (e: any) {
-        retries++;
-        recoveryHandling -= 5;
-        onUpdate("timeline", { id: "replanning-1", label: "Provider timeout detected. Replanning...", status: "failed" });
-        onUpdate("reasoning", "API Discovery failed. Initiating dynamic replanning...");
-        onUpdate("communication", { sender: "Planner", receiver: "API Discovery", message: "Timeout detected. Re-execute discovery protocol." });
-        
-        // Re-execute
-        await new Promise(r => setTimeout(r, 1000));
+      if (!discoverySuccess || !premiumApis) {
+        onUpdate("reasoning", "All Discovery attempts failed. Falling back to emergency provider.");
         premiumApis = [
-          { provider: "AlphaData Premium", cost: 4.50, latency: "150ms", reliability: "99.5%", vaultId: "alpha-vault" }
+          { provider: "Emergency Fallback API", cost: 5.00, latency: "250ms", reliability: "99.0%", vaultId: "fallback-vault" }
         ];
-        tasksCompleted++;
-        onUpdate("timeline", { id: "replanning-2", label: "API Discovery re-executed successfully", status: "completed" });
+        autonomousDecisions++;
       }
 
       // 5. Cost Optimization
       agentsUsed++;
-      selectedApi = await cost.optimizeAndSelect(premiumApis);
+      const selectedApi = await cost.optimizeAndSelect(premiumApis);
       estimatedCost = selectedApi.cost;
       tasksCompleted++;
+      autonomousDecisions++;
       
       onUpdate("metrics", { memoryMatch: memoryHits, savedCost: 0, freeSearches, premiumApis: 1, estimatedCost, actualCost, moneySaved });
 
       // 6. Payment Decision
       agentsUsed++;
+      let paymentResult;
       try {
         paymentResult = await payment.processPayment(selectedApi);
         premiumPurchases++;
         actualCost += selectedApi.cost;
         tasksCompleted++;
+        autonomousDecisions++;
       } catch (e: any) {
-        // Human declined or payment failed
         throw new Error(e.message);
       }
       
@@ -156,28 +151,32 @@ export class ExecutiveOrchestrator {
 
       // 7. Verify
       agentsUsed++;
-      let confidenceScore = 96;
       let verifiedData;
+      let finalConfidence = 0;
       try {
-        verifiedData = await verify.validate(paymentResult.data);
+        const vResult = await verify.validate(paymentResult.data);
+        verifiedData = vResult.data;
+        finalConfidence = vResult.confidenceScore;
         tasksCompleted++;
+        autonomousDecisions++;
       } catch (e) {
-        confidenceScore -= 15;
-        verifiedData = paymentResult.data; // Proceed with degraded confidence
+        finalConfidence = 70;
+        verifiedData = paymentResult.data;
       }
 
       // 8. Report
       agentsUsed++;
-      const finalReport = await report.generate(verifiedData);
+      const finalReport = await report.generate(verifiedData, prompt);
       tasksCompleted++;
+      autonomousDecisions++;
       
-      // Memory Evolution: Store the results
-      onUpdate("reasoning", "Memory Evolution: Storing executed reasoning, selected provider rankings, and final dataset into MongoDB MCP for future missions.");
+      // Memory Evolution: Store the actual results
+      await memory.saveToMemory(prompt, finalReport, verifiedData, selectedApi.cost);
       onUpdate("timeline", { id: "memory-evolution", label: "Results cached to Long-Term Memory", status: "completed" });
 
       onUpdate("timeline", { id: "finish", label: "Execution complete", status: "completed" });
       
-      this.emitFinalSummary(onUpdate, startTime, agentsUsed, tasksCompleted, memoryHits, premiumPurchases, moneySaved, confidenceScore, planningQuality, recoveryHandling);
+      this.emitFinalSummary(onUpdate, startTime, agentsUsed, tasksCompleted, memoryHits, premiumPurchases, moneySaved, finalConfidence, planningQuality, recoveryHandling, autonomousDecisions);
       onUpdate("done", { report: finalReport });
       
     } catch (e: any) {
@@ -195,17 +194,17 @@ export class ExecutiveOrchestrator {
     moneySaved: number, 
     confidence: number,
     planningQuality: number,
-    recoveryHandling: number
+    recoveryHandling: number,
+    autonomousDecisions: number
   ) {
     const executionTime = ((Date.now() - startTime) / 1000).toFixed(1);
     
     // Calculate intelligent sub-scores
-    const memoryEfficiency = memoryHits > 0 ? 100 : 85;
+    const memoryEfficiency = memoryHits > 0 ? 100 : (moneySaved > 0 ? 90 : 85);
     const costOptimizationScore = premiumPurchases === 0 ? 100 : 92;
     const verificationQuality = confidence;
-    const autonomousDecisions = 99;
     
-    const intelligenceScore = Math.round((planningQuality + memoryEfficiency + costOptimizationScore + verificationQuality + autonomousDecisions + recoveryHandling) / 6);
+    const intelligenceScore = Math.round((planningQuality + memoryEfficiency + costOptimizationScore + verificationQuality + autonomousDecisions*2 + recoveryHandling) / 6);
     
     onUpdate("mission_summary", {
       executionTime,
@@ -214,7 +213,7 @@ export class ExecutiveOrchestrator {
       memoryHits,
       premiumPurchases,
       moneySaved,
-      verificationPassed: true,
+      verificationPassed: confidence > 80,
       confidence,
       intelligenceScore,
       subScores: {
