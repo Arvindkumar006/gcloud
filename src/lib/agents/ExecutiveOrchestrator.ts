@@ -69,7 +69,7 @@ export class ExecutiveOrchestrator {
         research.executeFreeSearch(prompt).catch(e => {
           onUpdate("reasoning", "Primary free search failed. Proceeding to premium discovery.");
           recoveryHandling -= 2;
-          return { sufficient: false, data: [] };
+          return { sufficient: false, reasoning: "Live search unavailable.", results: [] };
         })
       ]);
       
