@@ -32,7 +32,7 @@ export class PaymentDecisionAgent {
     this.onUpdate("communication", { sender: "Payment Decision", receiver: "Verification", message: "Payment settled via Lend402. Initiating data retrieval." });
     
     // Step 2 & 5: Execute real provider retrieval with robust retries
-    const executor = getExecutorForProvider(apiDetails.id);
+    const executor = getExecutorForProvider(apiDetails.id, this.ai, this.onUpdate);
     let attempt = 0;
     const maxAttempts = 3;
     let providerResponse = null;
