@@ -6,10 +6,12 @@ export async function POST(req: Request) {
   try {
     const { prompt } = await req.json();
     
+    // Clear buffer synchronously to prevent SSE race condition where the client receives the previous execution's ghost events
+    globalEmitter.clearBuffer();
+
     // We run this asynchronously and return immediately so the client can connect to SSE.
-    setTimeout(async () => {
+    const runOrchestrator = async () => {
       try {
-        globalEmitter.clearBuffer();
         console.log("[Orchestrator API] Instantiating ExecutiveOrchestrator...");
         const geminiKey = process.env.GEMINI_API_KEY || "";
         if (!geminiKey || geminiKey.includes("your_")) {
@@ -25,7 +27,9 @@ export async function POST(req: Request) {
         console.error("[Orchestrator API] Caught unhandled exception:", err.message);
         globalEmitter.emit("orchestration_update", { type: "error", payload: err.message });
       }
-    }, 500);
+    };
+    
+    runOrchestrator();
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
