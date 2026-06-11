@@ -19,7 +19,7 @@ export class ReportAgent {
       reportText = response.text || reportText;
     } catch (e) {
       this.onUpdate("reasoning", "Gemini synthesis failed, returning raw verified data payload.");
-      reportText = JSON.stringify(verifiedDataObj.data);
+      reportText = JSON.stringify(verifiedDataObj);
     }
     
     this.onUpdate("reasoning", "Report generated successfully.");

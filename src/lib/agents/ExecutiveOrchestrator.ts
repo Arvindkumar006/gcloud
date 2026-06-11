@@ -138,7 +138,7 @@ export class ExecutiveOrchestrator {
       agentsUsed++;
       let paymentResult;
       try {
-        paymentResult = await payment.processPayment(selectedApi);
+        paymentResult = await payment.processPayment(prompt, selectedApi);
         premiumPurchases++;
         actualCost += selectedApi.cost;
         tasksCompleted++;
@@ -154,14 +154,14 @@ export class ExecutiveOrchestrator {
       let verifiedData;
       let finalConfidence = 0;
       try {
-        const vResult = await verify.validate(paymentResult.data);
+        const vResult = await verify.validate(paymentResult);
         verifiedData = vResult.data;
         finalConfidence = vResult.confidenceScore;
         tasksCompleted++;
         autonomousDecisions++;
       } catch (e) {
         finalConfidence = 70;
-        verifiedData = paymentResult.data;
+        verifiedData = paymentResult;
       }
 
       // 8. Report

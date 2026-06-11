@@ -1,16 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
+import { getExecutorForProvider } from "./ProviderExecutors";
 
 export class PaymentDecisionAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
 
-  async processPayment(apiDetails: any) {
+  async processPayment(prompt: string, apiDetails: any) {
     this.updateAgentState("running");
     this.onUpdate("graph_update", { id: "payment-1", status: "running" });
     this.onUpdate("timeline", { id: "payment", label: "Processing Lend402 JIT payment...", status: "running" });
 
     this.onUpdate("reasoning", `Evaluating cost threshold for ${apiDetails.provider} ($${apiDetails.cost}).`);
-    await new Promise(r => setTimeout(r, 1000));
     
+    // Step 4 & 7: Preserve Human Approval
     if (apiDetails.cost > 3.00) {
       this.onUpdate("reasoning", "Cost exceeds autonomous threshold. Emitting manual approval request.");
       this.onUpdate("communication", { sender: "Payment Decision", receiver: "User", message: `Require human approval for $${apiDetails.cost} payment to ${apiDetails.provider}.` });
@@ -25,16 +26,56 @@ export class PaymentDecisionAgent {
       this.onUpdate("reasoning", "Human supervisor approved the transaction.");
     } else {
       this.onUpdate("reasoning", "Cost is within autonomous limit. Executing Stacks JIT zero-latency borrow-and-pay sequence...");
-      await new Promise(r => setTimeout(r, 2000)); // Simulate Stacks contract interaction
+      // No more fake delay here
     }
 
     this.onUpdate("communication", { sender: "Payment Decision", receiver: "Verification", message: "Payment settled via Lend402. Initiating data retrieval." });
     
+    // Step 2 & 5: Execute real provider retrieval with robust retries
+    const executor = getExecutorForProvider(apiDetails.id);
+    let attempt = 0;
+    const maxAttempts = 3;
+    let providerResponse = null;
+    let success = false;
+
+    while (attempt < maxAttempts) {
+      try {
+        this.onUpdate("reasoning", `Executing provider retrieval for ${apiDetails.provider} (Attempt ${attempt + 1}/${maxAttempts})...`);
+        providerResponse = await executor.execute(apiDetails, prompt);
+        
+        // Step 6: Validate Provider Responses
+        if (!providerResponse || typeof providerResponse !== 'object' || Object.keys(providerResponse).length === 0 || providerResponse.error) {
+          throw new Error("Invalid, empty, or error payload received from provider.");
+        }
+        
+        success = true;
+        this.onUpdate("reasoning", `Provider execution successful on attempt ${attempt + 1}.`);
+        break;
+      } catch (e: any) {
+        attempt++;
+        this.onUpdate("reasoning", `Execution attempt ${attempt} failed: ${e.message}`);
+        if (attempt >= maxAttempts) {
+          this.onUpdate("reasoning", `All ${maxAttempts} execution attempts failed for ${apiDetails.provider}. Propagating error to orchestrator.`);
+          this.updateAgentState("failed");
+          this.onUpdate("graph_update", { id: "payment-1", status: "failed" });
+          throw new Error(`Failed to retrieve data from ${apiDetails.provider}: ${e.message}`);
+        }
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
+    }
+
     this.onUpdate("timeline", { id: "payment", label: "Payment & API Retrieval complete", status: "completed" });
     this.onUpdate("graph_update", { id: "payment-1", status: "completed" });
     this.updateAgentState("completed");
 
-    return { success: true, data: { source: apiDetails.provider, rawData: "Premium intelligence data block: AMD Edge compute growth at 18%." } };
+    // Step 8: Return Real Retrieved Payload
+    return { 
+      success: true, 
+      provider: apiDetails.provider,
+      endpoint: apiDetails.endpoint,
+      timestamp: Date.now(),
+      rawData: providerResponse 
+    };
   }
 
   private async requestApproval(amount: number): Promise<boolean> {
@@ -50,11 +91,9 @@ export class PaymentDecisionAgent {
 
       // In a real setup, we'd hook this via WebSocket/SSE back-channel.
       // For this demo structure, the front-end will POST to /api/orchestration/approve
-      // We simulate waiting via an interval polling the global node process or just resolving true after 5s if testing
       let attempts = 0;
       const interval = setInterval(() => {
         attempts++;
-        // Check a global variable for approval (set by the /approve route)
         if (global.approvalResponse !== undefined) {
           clearInterval(interval);
           const res = global.approvalResponse;
