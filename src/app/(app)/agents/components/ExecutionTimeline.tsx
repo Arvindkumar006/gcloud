@@ -17,7 +17,7 @@ export default function ExecutionTimeline({ events }: { events: TimelineEvent[] 
         <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-[#3E3E3E] before:to-transparent">
           {events.map((event, index) => (
             <motion.div 
-              key={event.id}
+              key={`${event.id}-${index}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}

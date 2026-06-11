@@ -14,7 +14,7 @@ export default function ToolRegistry() {
   ];
 
   return (
-    <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-xl p-4 flex flex-col h-full">
+    <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-xl p-4 flex flex-col">
       <div className="flex items-center space-x-2 mb-4">
         <Wrench className="w-4 h-4 text-orange-400" />
         <h3 className="text-xs font-semibold text-white/80 uppercase tracking-wider">Available Tools</h3>

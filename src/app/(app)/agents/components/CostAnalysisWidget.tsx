@@ -16,7 +16,7 @@ export type CostMetrics = {
 
 export default function CostAnalysisWidget({ metrics }: { metrics: CostMetrics }) {
   return (
-    <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-xl p-4 flex flex-col h-full space-y-4">
+    <div className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-xl p-4 flex flex-col space-y-4">
       <h3 className="text-xs font-semibold text-white/80 uppercase tracking-wider">Analytics & Savings</h3>
       
       <div className="grid grid-cols-2 gap-3">

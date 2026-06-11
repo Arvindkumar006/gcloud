@@ -495,7 +495,7 @@ export default function DocsPage() {
         <div className="flex flex-col gap-3">
           {apiEndpoints.map((ep) => (
             <div
-              key={ep.path}
+              key={`${ep.method}-${ep.path}`}
               className="rounded-[22px] border border-slate-200/80 bg-white/55 p-4 dark:border-slate-800/70 dark:bg-slate-950/30"
             >
               <div className="flex flex-wrap items-center gap-3 mb-2">
