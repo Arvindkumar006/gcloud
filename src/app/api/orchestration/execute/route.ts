@@ -7,11 +7,23 @@ export async function POST(req: Request) {
     const { prompt } = await req.json();
     
     // We run this asynchronously and return immediately so the client can connect to SSE.
-    setTimeout(() => {
-      const orchestrator = new ExecutiveOrchestrator();
-      orchestrator.execute(prompt, (type, payload) => {
-        globalEmitter.emit("orchestration_update", { type, payload });
-      });
+    setTimeout(async () => {
+      try {
+        globalEmitter.clearBuffer();
+        console.log("[Orchestrator API] Instantiating ExecutiveOrchestrator...");
+        if (!process.env.GEMINI_API_KEY) {
+          throw new Error("Missing GEMINI_API_KEY environment variable. Cannot initialize GoogleGenAI.");
+        }
+        const orchestrator = new ExecutiveOrchestrator();
+        console.log("[Orchestrator API] Executing prompt...");
+        await orchestrator.execute(prompt, (type, payload) => {
+          globalEmitter.emit("orchestration_update", { type, payload });
+        });
+        console.log("[Orchestrator API] Execution finished.");
+      } catch (err: any) {
+        console.error("[Orchestrator API] Caught unhandled exception:", err.message);
+        globalEmitter.emit("orchestration_update", { type: "error", payload: err.message });
+      }
     }, 500);
 
     return NextResponse.json({ success: true });

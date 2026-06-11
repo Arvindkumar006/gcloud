@@ -12,6 +12,7 @@ export async function GET(req: Request) {
         controller.enqueue(encoder.encode(msg));
       };
 
+      globalEmitter.replayBuffer(listener);
       globalEmitter.on("orchestration_update", listener);
 
       // Clean up when the client disconnects

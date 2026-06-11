@@ -33,6 +33,7 @@ export class ExecutiveOrchestrator {
     let recoveryHandling = 100;
     
     try {
+      console.log("[Orchestrator] Initializing Agents...");
       const planner = new PlannerAgent(this.ai, onUpdate);
       const memory = new MemoryAgent(this.ai, onUpdate);
       const research = new ResearchAgent(this.ai, onUpdate);
@@ -45,6 +46,7 @@ export class ExecutiveOrchestrator {
       onUpdate("timeline", { id: "init", label: "Executive Orchestrator started", status: "completed" });
 
       // 1. Plan
+      console.log("[Orchestrator] Stage 1: Planning...");
       agentsUsed++;
       let taskGraph;
       try {
@@ -57,6 +59,7 @@ export class ExecutiveOrchestrator {
       }
       
       // 2 & 3. Memory Check & Research (Parallel Execution)
+      console.log("[Orchestrator] Stage 2 & 3: Memory & Research...");
       agentsUsed += 2;
       onUpdate("reasoning", "Executing Memory Check and Free Research concurrently (Promise.all)...");
       autonomousDecisions++;
@@ -77,6 +80,7 @@ export class ExecutiveOrchestrator {
       freeSearches += 3; // base metric
       
       if (memoryResult.matchFound) {
+        console.log("[Orchestrator] Memory match found. Generating report from memory...");
         memoryHits++;
         moneySaved += memoryResult.savedCost;
         
@@ -89,12 +93,14 @@ export class ExecutiveOrchestrator {
         
         this.emitFinalSummary(onUpdate, startTime, agentsUsed, tasksCompleted, memoryHits, premiumPurchases, moneySaved, 98, planningQuality, recoveryHandling, autonomousDecisions);
         onUpdate("done", { report: finalReport });
+        console.log("[Orchestrator] Execution finished from memory.");
         return;
       }
 
       let premiumApis;
       
       // 4. API Discovery with Robust Retry Loop
+      console.log("[Orchestrator] Stage 4: API Discovery...");
       const MAX_ATTEMPTS = 3;
       let discoverySuccess = false;
       
@@ -108,6 +114,7 @@ export class ExecutiveOrchestrator {
           autonomousDecisions++;
           break; // Exit loop on success
         } catch (e: any) {
+          console.log(`[Orchestrator] API Discovery failed on attempt ${attempt}:`, e.message);
           retries++;
           recoveryHandling -= 5;
           onUpdate("timeline", { id: `replanning-${attempt}`, label: `Provider timeout (Attempt ${attempt}). Replanning...`, status: "failed" });
@@ -126,6 +133,7 @@ export class ExecutiveOrchestrator {
       }
 
       // 5. Cost Optimization
+      console.log("[Orchestrator] Stage 5: Cost Optimization...");
       agentsUsed++;
       const selectedApi = await cost.optimizeAndSelect(premiumApis);
       estimatedCost = selectedApi.cost;
@@ -135,6 +143,7 @@ export class ExecutiveOrchestrator {
       onUpdate("metrics", { memoryMatch: memoryHits, savedCost: 0, freeSearches, premiumApis: 1, estimatedCost, actualCost, moneySaved });
 
       // 6. Payment Decision
+      console.log("[Orchestrator] Stage 6: Payment Decision...");
       agentsUsed++;
       let paymentResult;
       try {
@@ -144,12 +153,14 @@ export class ExecutiveOrchestrator {
         tasksCompleted++;
         autonomousDecisions++;
       } catch (e: any) {
+        console.error("[Orchestrator] Payment Decision Exception:", e);
         throw new Error(e.message);
       }
       
       onUpdate("metrics", { memoryMatch: memoryHits, savedCost: 0, freeSearches, premiumApis: premiumPurchases, estimatedCost, actualCost, moneySaved });
 
       // 7. Verify
+      console.log("[Orchestrator] Stage 7: Verification...");
       agentsUsed++;
       let verifiedData;
       let finalConfidence = 0;
@@ -160,17 +171,20 @@ export class ExecutiveOrchestrator {
         tasksCompleted++;
         autonomousDecisions++;
       } catch (e) {
+        console.log("[Orchestrator] Verification failed, using fallback confidence.");
         finalConfidence = 70;
         verifiedData = paymentResult;
       }
 
       // 8. Report
+      console.log("[Orchestrator] Stage 8: Report Generation...");
       agentsUsed++;
       const finalReport = await report.generate(verifiedData, prompt);
       tasksCompleted++;
       autonomousDecisions++;
       
       // Memory Evolution: Store the actual results
+      console.log("[Orchestrator] Stage 9: Memory Evolution...");
       await memory.saveToMemory(prompt, finalReport, verifiedData, selectedApi.cost);
       onUpdate("timeline", { id: "memory-evolution", label: "Results cached to Long-Term Memory", status: "completed" });
 
@@ -178,8 +192,10 @@ export class ExecutiveOrchestrator {
       
       this.emitFinalSummary(onUpdate, startTime, agentsUsed, tasksCompleted, memoryHits, premiumPurchases, moneySaved, finalConfidence, planningQuality, recoveryHandling, autonomousDecisions);
       onUpdate("done", { report: finalReport });
+      console.log("[Orchestrator] All stages completed successfully.");
       
     } catch (e: any) {
+      console.error("[Orchestrator] Top-level execute exception:", e);
       onUpdate("error", e.message);
     }
   }
