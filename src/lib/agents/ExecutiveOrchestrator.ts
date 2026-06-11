@@ -102,7 +102,7 @@ export class ExecutiveOrchestrator {
         try {
           if (attempt === 1) agentsUsed++;
           onUpdate("reasoning", `API Discovery Attempt ${attempt}/${MAX_ATTEMPTS}...`);
-          premiumApis = await discovery.discoverApis(taskGraph, freeDataResult);
+          premiumApis = await discovery.discoverApis(prompt, taskGraph, freeDataResult);
           discoverySuccess = true;
           tasksCompleted++;
           autonomousDecisions++;
