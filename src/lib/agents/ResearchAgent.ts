@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { DEMO_CONFIG } from "./config";
 import { SearchProvider, TavilySearchProvider, SearchResult } from "./SearchProviders";
+import { parseJsonSafely } from "./utils";
 
 export class ResearchAgent {
   private queryCache: Map<string, SearchResult[]> = new Map();
@@ -73,12 +74,14 @@ Search Results: ${JSON.stringify(results.slice(0, 5))}
 Return ONLY valid JSON in this format: {"sufficient": boolean, "reasoning": "string"}.`
       });
 
-      let text = evalResponse.text || "{}";
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(text);
-      
-      sufficient = parsed.sufficient || false;
-      reasoning = parsed.reasoning || "Evaluation completed.";
+      const parseRes = parseJsonSafely(evalResponse.text || "{}");
+      if (parseRes.success && parseRes.data) {
+        sufficient = parseRes.data.sufficient || false;
+        reasoning = parseRes.data.reasoning || "Evaluation completed.";
+      } else {
+        sufficient = false;
+        reasoning = `Gemini evaluation parsing failed: ${parseRes.error}. Defaulting to insufficient.`;
+      }
       this.onUpdate("reasoning", `Gemini Research Evaluation: ${reasoning}`);
 
     } catch (e: any) {

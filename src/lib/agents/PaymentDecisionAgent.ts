@@ -35,7 +35,7 @@ export class PaymentDecisionAgent {
       // Step 2 & 5: Execute real provider retrieval with robust retries
       const executor = getExecutorForProvider(apiDetails.id, this.ai, this.onUpdate);
       let attempt = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 2;
       let providerResponse = null;
       let success = false;
 
@@ -61,8 +61,6 @@ export class PaymentDecisionAgent {
           this.onUpdate("reasoning", `Execution attempt ${attempt} failed: ${e.message}`);
           if (attempt >= maxAttempts) {
             this.onUpdate("reasoning", `All ${maxAttempts} execution attempts failed for ${apiDetails.provider}.`);
-          } else {
-            await new Promise(r => setTimeout(r, 1000 * attempt));
           }
         }
       }
@@ -82,7 +80,7 @@ export class PaymentDecisionAgent {
         };
       } else {
         if (i < apiDetailsList.length - 1) {
-           this.onUpdate("reasoning", `${apiDetails.provider} failed or unavailable. Moving to next best provider...`);
+           this.onUpdate("reasoning", `${apiDetails.provider} execution failed. Switching to next ranked provider.`);
         }
       }
     }
@@ -95,13 +93,6 @@ export class PaymentDecisionAgent {
   private async requestApproval(amount: number): Promise<boolean> {
     return new Promise((resolve) => {
       this.onUpdate("approval", { amount });
-      
-      const handleApproval = (e: any) => {
-        const payload = JSON.parse(e.data);
-        if (payload.type === "approval_response") {
-          resolve(payload.approved);
-        }
-      };
 
       // In a real setup, we'd hook this via WebSocket/SSE back-channel.
       // For this demo structure, the front-end will POST to /api/orchestration/approve

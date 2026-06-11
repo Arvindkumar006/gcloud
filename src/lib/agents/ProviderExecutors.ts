@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { parseJsonSafely } from "./utils";
 
 export function isInvalidKey(key: string | undefined): boolean {
   if (!key) return true;
@@ -44,9 +45,11 @@ async function getExtractedEntities(prompt: string, ai: GoogleGenAI, onUpdate: F
       Return ONLY JSON: {"query": "string", "tickers": ["AAPL"], "companies": ["Apple"]}`
     });
     
-    let text = res.text || "{}";
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const parsed = JSON.parse(text);
+    const parseRes = parseJsonSafely(res.text || "{}");
+    if (!parseRes.success || !parseRes.data) {
+      throw new Error(`Parsing failed: ${parseRes.error}`);
+    }
+    const parsed = parseRes.data;
     
     extracted.query = parsed.query || prompt;
     extracted.tickers = parsed.tickers || [];

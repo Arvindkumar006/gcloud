@@ -120,7 +120,6 @@ export class ExecutiveOrchestrator {
           onUpdate("timeline", { id: `replanning-${attempt}`, label: `Provider timeout (Attempt ${attempt}). Replanning...`, status: "failed" });
           onUpdate("reasoning", `API Discovery failed on attempt ${attempt}. Re-executing discovery protocol.`);
           onUpdate("communication", { sender: "Planner", receiver: "API Discovery", message: "Timeout detected. Retrying." });
-          await new Promise(r => setTimeout(r, 1000));
         }
       }
       

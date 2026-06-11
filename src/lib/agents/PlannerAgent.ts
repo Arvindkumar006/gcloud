@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { parseJsonSafely } from "./utils";
 
 export class PlannerAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -22,10 +23,12 @@ Do not wrap the JSON in markdown code blocks.`,
         }
       });
 
-      let text = response.text;
-      if (text) {
-        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-        taskGraph = JSON.parse(text);
+      if (response.text) {
+        const parseRes = parseJsonSafely(response.text);
+        if (!parseRes.success || !Array.isArray(parseRes.data)) {
+          throw new Error(parseRes.error || "Parsed data is not an array");
+        }
+        taskGraph = parseRes.data;
         
         // Ensure standard IDs for dashboard rendering
         if (!taskGraph.find((t: any) => t.id === "task-1")) {

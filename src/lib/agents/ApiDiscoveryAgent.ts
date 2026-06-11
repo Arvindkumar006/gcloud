@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { PROVIDER_REGISTRY } from "./ProviderRegistry";
+import { parseJsonSafely } from "./utils";
 
 export class ApiDiscoveryAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -39,12 +40,13 @@ Valid capabilities are: "market-data", "analyst-ratings", "institutional-sentime
 Return ONLY valid JSON in the format: {"requiredCapabilities": ["cap1", "cap2"], "reasoning": "string"}. Do not allow markdown formatting.`
       });
 
-      let text = response.text || "{}";
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(text);
+      const parseRes = parseJsonSafely(response.text || "{}");
+      if (!parseRes.success || !parseRes.data) {
+        throw new Error(`Parsing failed: ${parseRes.error}`);
+      }
       
-      requiredCapabilities = parsed.requiredCapabilities || [];
-      reasoning = parsed.reasoning || "Capabilities inferred.";
+      requiredCapabilities = parseRes.data.requiredCapabilities || [];
+      reasoning = parseRes.data.reasoning || "Capabilities inferred.";
       
       if (requiredCapabilities.length > 0) {
         this.onUpdate("reasoning", `Gemini inferred required capabilities: ${requiredCapabilities.join(", ")}.\nReasoning: ${reasoning}`);

@@ -37,7 +37,6 @@ export class ReportAgent {
     this.onUpdate("timeline", { id: "report", label: "Generating report from memory...", status: "running" });
 
     this.onUpdate("reasoning", "Formatting cached memory into the final executive summary...");
-    await new Promise(r => setTimeout(r, 500));
     
     this.onUpdate("timeline", { id: "report", label: "Executive Summary generated", status: "completed" });
     this.onUpdate("graph_update", { id: "result-1", status: "completed" });

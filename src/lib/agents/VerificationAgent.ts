@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { parseJsonSafely } from "./utils";
 
 export class VerificationAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -19,15 +20,16 @@ export class VerificationAgent {
 Return ONLY valid JSON: {"confidenceScore": number (0-100), "reasoning": "string"}.`
       });
 
-      let text = response.text || "{}";
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(text);
+      const parseRes = parseJsonSafely(response.text || "{}");
+      if (!parseRes.success || !parseRes.data) {
+        throw new Error(`Parsing failed: ${parseRes.error}`);
+      }
       
-      confidenceScore = parsed.confidenceScore || 85;
-      this.onUpdate("reasoning", `Verification result: ${parsed.reasoning}. Computed Confidence: ${confidenceScore}%`);
+      confidenceScore = parseRes.data.confidenceScore || 85;
+      this.onUpdate("reasoning", `Verification result: ${parseRes.data.reasoning || "completed"}. Computed Confidence: ${confidenceScore}%`);
 
-    } catch (e) {
-      this.onUpdate("reasoning", "Gemini verification encountered an issue. Using baseline confidence heuristic.");
+    } catch (e: any) {
+      this.onUpdate("reasoning", `Gemini verification encountered an issue (${e.message}). Using baseline confidence heuristic.`);
     }
     
     this.onUpdate("communication", { sender: "Verification", receiver: "Report", message: `Confidence score ${confidenceScore}%. Verification passed.` });
