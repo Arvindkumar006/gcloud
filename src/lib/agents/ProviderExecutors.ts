@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { parseJsonSafely } from "./utils";
+import { parseJsonSafely, generateContentWithRetry } from "./utils";
 
 export function isInvalidKey(key: string | undefined): boolean {
   if (!key) return true;
@@ -39,7 +39,7 @@ async function getExtractedEntities(prompt: string, ai: GoogleGenAI, onUpdate: F
   };
 
   try {
-    const res = await ai.models.generateContent({
+    const res = await generateContentWithRetry(ai, {
       model: "gemini-2.5-flash",
       contents: `Extract the core search query, stock tickers, and company names from this prompt: "${prompt}".
       Return ONLY JSON: {"query": "string", "tickers": ["AAPL"], "companies": ["Apple"]}`

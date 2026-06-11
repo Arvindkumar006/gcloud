@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { parseJsonSafely } from "./utils";
+import { parseJsonSafely, generateContentWithRetry } from "./utils";
 
 export class CostOptimizationAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -15,7 +15,7 @@ export class CostOptimizationAgent {
     let sortedProviders = [...providers].sort((a, b) => a.cost - b.cost);
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Evaluate the following API providers: ${JSON.stringify(providers)}. 
 Sort them from best to worst balancing cost, latency, and reliability.

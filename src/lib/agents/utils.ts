@@ -1,3 +1,5 @@
+import { GoogleGenAI } from "@google/genai";
+
 export interface SafeParseResult<T = any> {
   success: boolean;
   data?: T;
@@ -47,5 +49,37 @@ export function parseJsonSafely<T = any>(text: string): SafeParseResult<T> {
     return { success: true, data };
   } catch (e: any) {
     return { success: false, error: e.message };
+  }
+}
+
+export async function generateContentWithRetry(
+  ai: GoogleGenAI,
+  params: any,
+  maxRetries = 3
+): Promise<any> {
+  let attempt = 0;
+  while (attempt <= maxRetries) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (e: any) {
+      // Log complete backend exception using console.error
+      console.error(`[Gemini SDK Error] Attempt ${attempt + 1}/${maxRetries + 1}`);
+      console.error(`Status: ${e.status || 'N/A'}`);
+      console.error(`Message: ${e.message || 'N/A'}`);
+      console.error(e);
+
+      const isUnavailable = e.status === 503 || (e.message && e.message.includes('503'));
+      
+      if (isUnavailable && attempt < maxRetries) {
+        attempt++;
+        // Exponential backoff: 1s, 2s, 4s
+        const backoffMs = Math.pow(2, attempt - 1) * 1000;
+        console.error(`[Gemini SDK] 503 UNAVAILABLE. Retrying in ${backoffMs}ms...`);
+        await new Promise(r => setTimeout(r, backoffMs));
+      } else {
+        // Mask raw errors for UI and SSE
+        throw new Error("Gemini AI Service unavailable or experienced an error.");
+      }
+    }
   }
 }

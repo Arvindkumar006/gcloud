@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { DEMO_CONFIG } from "./config";
 import { SearchProvider, TavilySearchProvider, SearchResult } from "./SearchProviders";
-import { parseJsonSafely } from "./utils";
+import { parseJsonSafely, generateContentWithRetry } from "./utils";
 
 export class ResearchAgent {
   private queryCache: Map<string, SearchResult[]> = new Map();
@@ -25,7 +25,7 @@ export class ResearchAgent {
       }
 
       // 1. Generate optimized search query
-      const queryResponse = await this.ai.models.generateContent({
+      const queryResponse = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Given the user prompt: "${prompt}", generate an optimized web search query. Return ONLY the search string, nothing else.`
       });
@@ -67,7 +67,7 @@ export class ResearchAgent {
 
       // 3. Evaluate sufficiency using Gemini
       this.onUpdate("reasoning", "Evaluating retrieved results for sufficiency...");
-      const evalResponse = await this.ai.models.generateContent({
+      const evalResponse = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Evaluate if the following search results are sufficient to entirely fulfill the user prompt: "${prompt}".
 Search Results: ${JSON.stringify(results.slice(0, 5))}

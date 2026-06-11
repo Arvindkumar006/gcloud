@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { parseJsonSafely } from "./utils";
+import { parseJsonSafely, generateContentWithRetry } from "./utils";
 
 export class VerificationAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -14,7 +14,7 @@ export class VerificationAgent {
     let confidenceScore = 85;
     
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Evaluate the following dataset for consistency and likely accuracy: ${JSON.stringify(data)}.
 Return ONLY valid JSON: {"confidenceScore": number (0-100), "reasoning": "string"}.`

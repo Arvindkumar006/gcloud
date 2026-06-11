@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { generateContentWithRetry } from "./utils";
 
 export class ReportAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -12,7 +13,7 @@ export class ReportAgent {
     
     let reportText = "Executive Summary synthesized successfully.";
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Given the user prompt "${prompt}" and the following verified data payload: ${JSON.stringify(verifiedDataObj)}, write a 2-3 sentence executive summary that strictly relies on the provided data.`
       });

@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { PROVIDER_REGISTRY } from "./ProviderRegistry";
-import { parseJsonSafely } from "./utils";
+import { parseJsonSafely, generateContentWithRetry } from "./utils";
 
 export class ApiDiscoveryAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -31,7 +31,7 @@ export class ApiDiscoveryAgent {
 
     try {
       // Step 3: Gemini + Deterministic Fallback
-      const response = await this.ai.models.generateContent({
+      const response = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Analyze the following user prompt: "${prompt}".
 Also consider that free web search was insufficient.

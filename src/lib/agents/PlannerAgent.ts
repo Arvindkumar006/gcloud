@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { parseJsonSafely } from "./utils";
+import { parseJsonSafely, generateContentWithRetry } from "./utils";
 
 export class PlannerAgent {
   constructor(private ai: GoogleGenAI, private onUpdate: (type: string, payload: any) => void) {}
@@ -11,7 +11,7 @@ export class PlannerAgent {
 
     let taskGraph;
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Given the user prompt "${prompt}", construct an orchestration pipeline graph. 
 Return ONLY a valid JSON array of objects with keys: id, label, type, status. 
