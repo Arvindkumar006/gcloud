@@ -1,5 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 
+export function isInvalidKey(key: string | undefined): boolean {
+  if (!key) return true;
+  const lower = key.toLowerCase();
+  if (lower.includes("your_") || lower.includes("replace_") || lower === "") return true;
+  return false;
+}
+
 const CIK_MAP: Record<string, string> = {
   "apple": "0000320193",
   "aapl": "0000320193",
@@ -81,7 +88,7 @@ export class AlphaVantageExecutor implements ProviderExecutor {
   constructor(private ai: GoogleGenAI, private onUpdate: Function) {}
   async execute(provider: any, prompt: string): Promise<any> {
     const apiKey = process.env.ALPHAVANTAGE_API_KEY;
-    if (!apiKey) throw new Error("Missing ALPHAVANTAGE_API_KEY.");
+    if (isInvalidKey(apiKey)) throw new Error("Configuration Error: ALPHAVANTAGE_API_KEY is missing.");
     const entities = await getExtractedEntities(prompt, this.ai, this.onUpdate);
     const topics = entities.tickers.length > 0 ? entities.tickers.join(",") : encodeURIComponent(entities.query);
     this.onUpdate("reasoning", `Constructed Alpha Vantage query: "topics=${topics}"\nExecuting provider request...`);
@@ -95,7 +102,7 @@ export class FinnhubExecutor implements ProviderExecutor {
   constructor(private ai: GoogleGenAI, private onUpdate: Function) {}
   async execute(provider: any, prompt: string): Promise<any> {
     const apiKey = process.env.FINNHUB_API_KEY;
-    if (!apiKey) throw new Error("Missing FINNHUB_API_KEY.");
+    if (isInvalidKey(apiKey)) throw new Error("Configuration Error: FINNHUB_API_KEY is missing.");
     const entities = await getExtractedEntities(prompt, this.ai, this.onUpdate);
     
     let url = "";
@@ -118,7 +125,7 @@ export class PolygonExecutor implements ProviderExecutor {
   constructor(private ai: GoogleGenAI, private onUpdate: Function) {}
   async execute(provider: any, prompt: string): Promise<any> {
     const apiKey = process.env.POLYGON_API_KEY;
-    if (!apiKey) throw new Error("Missing POLYGON_API_KEY.");
+    if (isInvalidKey(apiKey)) throw new Error("Configuration Error: POLYGON_API_KEY is missing.");
     const entities = await getExtractedEntities(prompt, this.ai, this.onUpdate);
     
     const searchParam = entities.tickers.length > 0 ? `ticker=${entities.tickers[0]}` : `search=${encodeURIComponent(entities.query)}`;
@@ -133,7 +140,7 @@ export class NewsApiExecutor implements ProviderExecutor {
   constructor(private ai: GoogleGenAI, private onUpdate: Function) {}
   async execute(provider: any, prompt: string): Promise<any> {
     const apiKey = process.env.NEWSAPI_API_KEY;
-    if (!apiKey) throw new Error("Missing NEWSAPI_API_KEY.");
+    if (isInvalidKey(apiKey)) throw new Error("Configuration Error: NEWSAPI_API_KEY is missing.");
     const entities = await getExtractedEntities(prompt, this.ai, this.onUpdate);
     const q = encodeURIComponent(entities.query);
     this.onUpdate("reasoning", `Constructed NewsAPI query: "${entities.query}"\nExecuting provider request...`);
@@ -147,7 +154,7 @@ export class TavilyExecutor implements ProviderExecutor {
   constructor(private ai: GoogleGenAI, private onUpdate: Function) {}
   async execute(provider: any, prompt: string): Promise<any> {
     const apiKey = process.env.TAVILY_API_KEY;
-    if (!apiKey) throw new Error("Missing TAVILY_API_KEY.");
+    if (isInvalidKey(apiKey)) throw new Error("Configuration Error: TAVILY_API_KEY is missing.");
     this.onUpdate("reasoning", `Constructed Tavily query: "${prompt}"\nExecuting provider request...`);
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
@@ -163,7 +170,7 @@ export class FMPExecutor implements ProviderExecutor {
   constructor(private ai: GoogleGenAI, private onUpdate: Function) {}
   async execute(provider: any, prompt: string): Promise<any> {
     const apiKey = process.env.FMP_API_KEY;
-    if (!apiKey) throw new Error("Missing FMP_API_KEY.");
+    if (isInvalidKey(apiKey)) throw new Error("Configuration Error: FMP_API_KEY is missing.");
     const entities = await getExtractedEntities(prompt, this.ai, this.onUpdate);
     
     let url = "";
@@ -204,7 +211,7 @@ export class TwelveDataExecutor implements ProviderExecutor {
   constructor(private ai: GoogleGenAI, private onUpdate: Function) {}
   async execute(provider: any, prompt: string): Promise<any> {
     const apiKey = process.env.TWELVEDATA_API_KEY;
-    if (!apiKey) throw new Error("Missing TWELVEDATA_API_KEY.");
+    if (isInvalidKey(apiKey)) throw new Error("Configuration Error: TWELVEDATA_API_KEY is missing.");
     const entities = await getExtractedEntities(prompt, this.ai, this.onUpdate);
     const searchParam = entities.tickers.length > 0 ? `symbol=${entities.tickers[0]}` : `symbol=${encodeURIComponent(entities.query)}`;
     

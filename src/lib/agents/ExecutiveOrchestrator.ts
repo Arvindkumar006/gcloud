@@ -135,8 +135,8 @@ export class ExecutiveOrchestrator {
       // 5. Cost Optimization
       console.log("[Orchestrator] Stage 5: Cost Optimization...");
       agentsUsed++;
-      const selectedApi = await cost.optimizeAndSelect(premiumApis);
-      estimatedCost = selectedApi.cost;
+      const selectedApis = await cost.optimizeAndSelect(premiumApis);
+      estimatedCost = selectedApis[0].cost;
       tasksCompleted++;
       autonomousDecisions++;
       
@@ -147,9 +147,9 @@ export class ExecutiveOrchestrator {
       agentsUsed++;
       let paymentResult;
       try {
-        paymentResult = await payment.processPayment(prompt, selectedApi);
+        paymentResult = await payment.processPayment(prompt, selectedApis);
         premiumPurchases++;
-        actualCost += selectedApi.cost;
+        actualCost += paymentResult.cost;
         tasksCompleted++;
         autonomousDecisions++;
       } catch (e: any) {
@@ -185,7 +185,7 @@ export class ExecutiveOrchestrator {
       
       // Memory Evolution: Store the actual results
       console.log("[Orchestrator] Stage 9: Memory Evolution...");
-      await memory.saveToMemory(prompt, finalReport, verifiedData, selectedApi.cost);
+      await memory.saveToMemory(prompt, finalReport, verifiedData, paymentResult.cost);
       onUpdate("timeline", { id: "memory-evolution", label: "Results cached to Long-Term Memory", status: "completed" });
 
       onUpdate("timeline", { id: "finish", label: "Execution complete", status: "completed" });

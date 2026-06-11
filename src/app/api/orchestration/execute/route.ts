@@ -11,8 +11,9 @@ export async function POST(req: Request) {
       try {
         globalEmitter.clearBuffer();
         console.log("[Orchestrator API] Instantiating ExecutiveOrchestrator...");
-        if (!process.env.GEMINI_API_KEY) {
-          throw new Error("Missing GEMINI_API_KEY environment variable. Cannot initialize GoogleGenAI.");
+        const geminiKey = process.env.GEMINI_API_KEY || "";
+        if (!geminiKey || geminiKey.includes("your_")) {
+          throw new Error("Configuration Error: GEMINI_API_KEY is not configured.");
         }
         const orchestrator = new ExecutiveOrchestrator();
         console.log("[Orchestrator API] Executing prompt...");

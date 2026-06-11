@@ -16,8 +16,13 @@ export class TavilySearchProvider implements SearchProvider {
 
   async search(query: string): Promise<SearchResult[]> {
     const apiKey = process.env.TAVILY_API_KEY || "";
-    if (!apiKey) {
-      throw new Error("Missing TAVILY_API_KEY environment variable. Add it to .env.local");
+    if (!apiKey || apiKey.includes("your_")) {
+      const globalEmitter = (await import("@/lib/agents/EventEmitter")).default;
+      globalEmitter.emit("orchestration_update", {
+        type: "reasoning",
+        payload: "Configuration Error: TAVILY_API_KEY is missing. Falling back to alternative execution strategy."
+      });
+      return [];
     }
 
     const response = await fetch("https://api.tavily.com/search", {
