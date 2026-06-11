@@ -28,7 +28,7 @@ export class ResearchAgent {
       const queryResponse = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Given the user prompt: "${prompt}", generate an optimized web search query. Return ONLY the search string, nothing else.`
-      });
+      }, this.onUpdate);
       const query = queryResponse.text ? queryResponse.text.trim() : prompt;
       
       // 2. Execute search with a Provider
@@ -72,7 +72,7 @@ export class ResearchAgent {
         contents: `Evaluate if the following search results are sufficient to entirely fulfill the user prompt: "${prompt}".
 Search Results: ${JSON.stringify(results.slice(0, 5))}
 Return ONLY valid JSON in this format: {"sufficient": boolean, "reasoning": "string"}.`
-      });
+      }, this.onUpdate);
 
       const parseRes = parseJsonSafely(evalResponse.text || "{}");
       if (parseRes.success && parseRes.data) {

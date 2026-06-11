@@ -43,7 +43,7 @@ async function getExtractedEntities(prompt: string, ai: GoogleGenAI, onUpdate: F
       model: "gemini-2.5-flash",
       contents: `Extract the core search query, stock tickers, and company names from this prompt: "${prompt}".
       Return ONLY JSON: {"query": "string", "tickers": ["AAPL"], "companies": ["Apple"]}`
-    });
+    }, onUpdate as any);
     
     const parseRes = parseJsonSafely(res.text || "{}");
     if (!parseRes.success || !parseRes.data) {

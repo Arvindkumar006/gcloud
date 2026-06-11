@@ -21,7 +21,7 @@ Do not wrap the JSON in markdown code blocks.`,
         config: {
           temperature: 0.2
         }
-      });
+      }, this.onUpdate);
 
       if (response.text) {
         const parseRes = parseJsonSafely(response.text);

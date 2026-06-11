@@ -16,7 +16,7 @@ export class ReportAgent {
       const response = await generateContentWithRetry(this.ai, {
         model: "gemini-2.5-flash",
         contents: `Given the user prompt "${prompt}" and the following verified data payload: ${JSON.stringify(verifiedDataObj)}, write a 2-3 sentence executive summary that strictly relies on the provided data.`
-      });
+      }, this.onUpdate);
       reportText = response.text || reportText;
     } catch (e) {
       this.onUpdate("reasoning", "Gemini synthesis failed, returning raw verified data payload.");

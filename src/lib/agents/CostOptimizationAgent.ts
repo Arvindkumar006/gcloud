@@ -20,7 +20,7 @@ export class CostOptimizationAgent {
         contents: `Evaluate the following API providers: ${JSON.stringify(providers)}. 
 Sort them from best to worst balancing cost, latency, and reliability.
 Return ONLY valid JSON with an array of the sorted provider objects.`
-      });
+      }, this.onUpdate);
 
       const parseRes = parseJsonSafely(response.text || "[]");
       if (!parseRes.success || !parseRes.data) {

@@ -18,7 +18,7 @@ export class VerificationAgent {
         model: "gemini-2.5-flash",
         contents: `Evaluate the following dataset for consistency and likely accuracy: ${JSON.stringify(data)}.
 Return ONLY valid JSON: {"confidenceScore": number (0-100), "reasoning": "string"}.`
-      });
+      }, this.onUpdate);
 
       const parseRes = parseJsonSafely(response.text || "{}");
       if (!parseRes.success || !parseRes.data) {

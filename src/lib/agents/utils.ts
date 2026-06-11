@@ -55,29 +55,49 @@ export function parseJsonSafely<T = any>(text: string): SafeParseResult<T> {
 export async function generateContentWithRetry(
   ai: GoogleGenAI,
   params: any,
+  onUpdate?: (type: string, payload: any) => void,
   maxRetries = 3
 ): Promise<any> {
   let attempt = 0;
   while (attempt <= maxRetries) {
+    const currentAttempt = attempt + 1;
+    const maxAttempts = maxRetries + 1;
+    
+    console.log(`[Gemini Retry] Attempt ${currentAttempt}/${maxAttempts}`);
+    onUpdate?.("reasoning", `[Gemini Retry] Attempt ${currentAttempt}/${maxAttempts}`);
+
     try {
       return await ai.models.generateContent(params);
     } catch (e: any) {
-      // Log complete backend exception using console.error
-      console.error(`[Gemini SDK Error] Attempt ${attempt + 1}/${maxRetries + 1}`);
-      console.error(`Status: ${e.status || 'N/A'}`);
-      console.error(`Message: ${e.message || 'N/A'}`);
-      console.error(e);
-
-      const isUnavailable = e.status === 503 || (e.message && e.message.includes('503'));
+      console.error("[Gemini Retry] Raw exception:", e);
+      console.error(`[Gemini Retry] Attempt ${currentAttempt}/${maxAttempts} failed`);
+      console.error(`status: ${e?.status || 'N/A'}`);
+      console.error(`code: ${e?.code || e?.error?.code || 'N/A'}`);
+      console.error(`message: ${e?.message || 'N/A'}`);
+      
+      const errorStr = String(e?.message ?? "");
+      const isUnavailable = 
+        e?.status === 503 ||
+        e?.code === 503 ||
+        e?.error?.code === 503 ||
+        errorStr.includes("503") ||
+        errorStr.includes("UNAVAILABLE") ||
+        errorStr.includes("RESOURCE_EXHAUSTED") ||
+        errorStr.includes("429");
       
       if (isUnavailable && attempt < maxRetries) {
         attempt++;
-        // Exponential backoff: 1s, 2s, 4s
         const backoffMs = Math.pow(2, attempt - 1) * 1000;
-        console.error(`[Gemini SDK] 503 UNAVAILABLE. Retrying in ${backoffMs}ms...`);
+        console.error(`waiting ${backoffMs} ms before retry`);
+        
+        console.log(`Waiting ${backoffMs}ms...`);
+        onUpdate?.("reasoning", `Gemini unavailable. Waiting ${backoffMs}ms before retry...`);
+        
         await new Promise(r => setTimeout(r, backoffMs));
+        
+        console.log("Retrying...");
+        onUpdate?.("reasoning", "Retrying Gemini request...");
       } else {
-        // Mask raw errors for UI and SSE
         throw new Error("Gemini AI Service unavailable or experienced an error.");
       }
     }

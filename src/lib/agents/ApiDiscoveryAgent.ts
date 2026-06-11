@@ -38,7 +38,7 @@ Also consider that free web search was insufficient.
 Determine which premium API capabilities are required to fulfill the prompt.
 Valid capabilities are: "market-data", "analyst-ratings", "institutional-sentiment", "earnings", "sec-filings", "semiconductor-industry", "financial-news", "macroeconomics", "crypto", "forex".
 Return ONLY valid JSON in the format: {"requiredCapabilities": ["cap1", "cap2"], "reasoning": "string"}. Do not allow markdown formatting.`
-      });
+      }, this.onUpdate);
 
       const parseRes = parseJsonSafely(response.text || "{}");
       if (!parseRes.success || !parseRes.data) {
