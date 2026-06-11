@@ -9,9 +9,14 @@ export class ApiDiscoveryAgent {
     this.onUpdate("graph_update", { id: "api-1", status: "running" });
     this.onUpdate("timeline", { id: "discovery-start", label: "Comparing premium providers...", status: "running" });
 
-    // Step 6: Use freeData short-circuit
+    // Step 5: Proper Premium Skip Logic
     if (freeData && freeData.sufficient) {
-      this.onUpdate("reasoning", "Free data was sufficient. Skipping premium API discovery.");
+      this.onUpdate("reasoning", "Free sources fully satisfy this request. Premium discovery skipped.");
+      this.onUpdate("communication", { 
+        sender: "API Discovery", 
+        receiver: "Cost Optimization", 
+        message: "Premium APIs not required. Passing control back to orchestrator." 
+      });
       this.onUpdate("timeline", { id: "discovery-start", label: "Premium APIs not required", status: "completed" });
       this.onUpdate("graph_update", { id: "api-1", status: "completed" });
       this.updateAgentState("completed");
@@ -24,7 +29,7 @@ export class ApiDiscoveryAgent {
     let reasoning = "";
 
     try {
-      // Step 2: Use Gemini to Infer Required Capabilities
+      // Step 3: Gemini + Deterministic Fallback
       const response = await this.ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: `Analyze the following user prompt: "${prompt}".
@@ -47,14 +52,13 @@ Return ONLY valid JSON in the format: {"requiredCapabilities": ["cap1", "cap2"],
         throw new Error("Empty capabilities returned from Gemini");
       }
     } catch (e: any) {
-      // Step 8: Fallback to keyword extraction
       this.onUpdate("reasoning", `Gemini inference failed (${e.message}). Falling back to keyword extraction.`);
       
       const lowerPrompt = prompt.toLowerCase();
       const keywords: Record<string, string[]> = {
         "market-data": ["price", "market", "trading", "volume", "chart"],
         "analyst-ratings": ["analyst", "rating", "upgrade", "downgrade", "target"],
-        "institutional-sentiment": ["sentiment", "institution", "hedge fund", "whale", "smart money"],
+        "institutional-sentiment": ["sentiment", "institution", "hedge fund", "whale", "smart money", "market sentiment"],
         "earnings": ["earnings", "revenue", "q1", "q2", "q3", "q4", "eps"],
         "sec-filings": ["sec", "filing", "10-k", "10-q", "8-k", "disclosure"],
         "semiconductor-industry": ["semiconductor", "chip", "nvidia", "amd", "intel", "tsmc"],
@@ -71,19 +75,18 @@ Return ONLY valid JSON in the format: {"requiredCapabilities": ["cap1", "cap2"],
       }
       
       if (requiredCapabilities.length === 0) {
-        // Broad fallback
         requiredCapabilities = ["market-data", "financial-news"];
       }
       this.onUpdate("reasoning", `Fallback keyword extractor inferred required capabilities: ${requiredCapabilities.join(", ")}.`);
     }
 
-    // Step 3: Dynamically Match Providers
     if (PROVIDER_REGISTRY.length === 0) {
       this.onUpdate("reasoning", "Provider registry is empty.");
       this.finalizeDiscovery();
       return [];
     }
 
+    // Step 4: Improve Provider Ranking
     let matchedProviders = PROVIDER_REGISTRY.map(provider => {
       let matches = 0;
       for (const cap of requiredCapabilities) {
@@ -91,25 +94,37 @@ Return ONLY valid JSON in the format: {"requiredCapabilities": ["cap1", "cap2"],
           matches++;
         }
       }
-      const score = requiredCapabilities.length > 0 ? matches / requiredCapabilities.length : 0;
-      return { provider, score, matches };
+      
+      const capabilityCoverage = requiredCapabilities.length > 0 ? matches / requiredCapabilities.length : 0;
+      
+      // Do not rank providers with 0 capability overlap
+      if (capabilityCoverage === 0) {
+        return { provider, score: 0 };
+      }
+      
+      const reliabilityScore = parseFloat(provider.reliability.replace('%', '')) / 100;
+      const inverseCost = 1 / (provider.cost + 1);
+      
+      const score = (0.7 * capabilityCoverage) + (0.2 * reliabilityScore) + (0.1 * inverseCost);
+      
+      return { provider, score };
     });
 
     // Sort descending by score
     matchedProviders.sort((a, b) => b.score - a.score);
 
-    // Filter score > 0
+    // Return only meaningful matches (score > 0)
     const selectedProviders = matchedProviders
       .filter(p => p.score > 0)
       .map(p => p.provider);
 
     if (selectedProviders.length === 0) {
-      this.onUpdate("reasoning", "No providers matched the required capabilities.");
+      this.onUpdate("reasoning", "No providers meaningfully matched the required capabilities.");
       this.finalizeDiscovery();
       return [];
     }
 
-    this.onUpdate("reasoning", `Matched ${selectedProviders.length} providers from registry. Selected highest coverage providers.`);
+    this.onUpdate("reasoning", `Matched ${selectedProviders.length} providers. Scored by coverage, reliability, and cost.`);
     this.onUpdate("communication", { 
       sender: "API Discovery", 
       receiver: "Cost Optimization", 
